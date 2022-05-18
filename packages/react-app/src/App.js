@@ -1,57 +1,12 @@
 import { useQuery } from "@apollo/react-hooks";
-import { Contract } from "@ethersproject/contracts";
-import { getDefaultProvider } from "@ethersproject/providers";
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import { Body, Button, Header, Image, Link } from "./components";
 import useWeb3Modal from "./hooks/useWeb3Modal";
-
-import { addresses, abis } from "@project/contracts";
-import GET_TRANSFERS from "./graphql/subgraph";
 import Requests from "./components/Requests";
-
-const baseURI =
-  "https://safe-transaction.gnosis.io/api/v1/safes/0x52F50f557704938Df066EC4Db7426D66538E7796/multisig-transactions/";
-
-const sortPendingRequests = (requests) =>
-  requests.filter((request) => !request.isExecuted);
-
-const sortCompletedRequests = (requests) =>
-  requests.filter((request) => request.isExecuted);
-
-const sortRequests = (requests) => requests.filter((request) => request.dataDecoded.method === "deployLBPManager" || request.dataDecoded.method === "deploySeed");
-
-const getTransactions = async (
-  setPendingRequests,
-  setCompletedRequests,
-  setRequests,
-  setLoaded
-) => {
-  const response = await fetch(baseURI);
-  const requests = sortRequests((await response.json()).results);
-  setRequests(requests);
-  setPendingRequests(sortPendingRequests(requests));
-  setCompletedRequests(sortCompletedRequests(requests));
-  if (requests.length) setLoaded(true);
-};
-
-async function readOnChainData() {
-  // Should replace with the end-user wallet, e.g. Metamask
-  const defaultProvider = getDefaultProvider();
-  // Create an instance of an ethers.js Contract
-  // Read more about ethers.js on https://docs.ethers.io/v5/api/contract/contract/
-  const ceaErc20 = new Contract(
-    addresses.ceaErc20,
-    abis.erc20,
-    defaultProvider
-  );
-  // A pre-defined address that owns some CEAERC20 tokens
-  const tokenBalance = await ceaErc20.balanceOf(
-    "0x3f8CB69d9c0ED01923F11c829BaE4D9a4CB6c82C"
-  );
-  console.log({ tokenBalance: tokenBalance.toString() });
-}
+import GET_TRANSFERS from "./graphql/subgraph";
+import {getTransactions} from './SafeTransactionReader.js';
 
 function WalletButton({ provider, loadWeb3Modal, logoutOfWeb3Modal }) {
   const [account, setAccount] = useState("");
@@ -103,7 +58,7 @@ function WalletButton({ provider, loadWeb3Modal, logoutOfWeb3Modal }) {
 }
 
 function App() {
-  const { loading, error, data } = useQuery(GET_TRANSFERS);
+  const { loading } = useQuery(GET_TRANSFERS);
   const [provider, loadWeb3Modal, logoutOfWeb3Modal] = useWeb3Modal();
   const [pendingRequests, setPendingRequests] = useState();
   const [completedRequests, setCompletedRequests] = useState();
@@ -111,16 +66,13 @@ function App() {
   const [isLoaded, setLoaded] = useState();
 
   React.useEffect(() => {
-    if (!loading && !error && data && data.transfers) {
-      console.log({ transfers: data.transfers });
-    }
     getTransactions(
       setPendingRequests,
       setCompletedRequests,
       setRequests,
       setLoaded
     );
-  }, [loading, error, data]);
+  }, [loading]);
 
   return (
     <div>
@@ -133,8 +85,8 @@ function App() {
       </Header>
       {isLoaded ? (
         <Body>
-          <Requests requests={pendingRequests} title={"Pending Requests"} />
-          <Requests requests={completedRequests} title={"Completed Requests"} />
+          <Requests requests={pendingRequests} title={"Pending Requests"} key={"PendingTransactions"}/>
+          <Requests requests={completedRequests} title={"Completed Requests"} key={"CompletedTransactions"}/>
         </Body>
       ) : (
         <></>

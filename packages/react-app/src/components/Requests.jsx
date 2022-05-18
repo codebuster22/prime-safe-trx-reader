@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Tab, Row, Col, ListGroup } from "react-bootstrap";
 import { JsonToTable } from "react-json-to-table";
+import {loadMetadata} from "../SafeTransactionReader";
 
 const Requests = ({ requests, title }) => {
-  const [metadatas, setMetadata] = useState();
 
   const renderRequestItems = () => {
     return requests.map((request, index) => (
-      <ListGroup.Item action href={`#link${index + 1}`} key={request.none}>
+      <ListGroup.Item action href={`#link${index + 1}`} key={`LIST-${request.nonce}`}>
         {`${request.nonce}`}
       </ListGroup.Item>
     ));
@@ -15,8 +15,8 @@ const Requests = ({ requests, title }) => {
 
   const renderRequestPanes = () => {
     return requests.map((request, index) => (
-      <Tab.Pane eventKey={`#link${index + 1}`} key={request.none}>
-        <Request request={request} />
+      <Tab.Pane eventKey={`#link${index + 1}`} key={`TAB-${request.nonce}`}>
+        <Request request={request} key={`TAB-REQUEST-${request.nonce}`} />
       </Tab.Pane>
     ));
   };
@@ -39,31 +39,14 @@ const Requests = ({ requests, title }) => {
   );
 };
 
-function hexToString(str) {
-  const buf = new Buffer(str, "hex");
-  return buf.toString("utf8");
-}
-
 const Request = ({ request }) => {
   const [metadata, setMetadata] = useState();
   const [isLoaded, setIsLoaded] = useState();
 
-  const loadMetadata = async (request) => {
-    if (!metadata?.version && request?.nonce) {
-      const hashInBytes = request.dataDecoded.parameters[request.dataDecoded.parameters.length-1].value;
-      const hash = hexToString(hashInBytes.slice(2));
-      const response = await fetch(`https://ipfs.io/ipfs/${hash}`);
-      const data = await response.json();
-      setMetadata(JSON.parse(data));
-      if (data) {
-        setIsLoaded(true);
-      }
-    }
-  };
 
   useEffect(() => {
-    if (!isLoaded) {
-      loadMetadata(request);
+    if (!isLoaded && !metadata?.version) {
+      loadMetadata(request, metadata, setMetadata, setIsLoaded);
     }
   }, [isLoaded, request]);
 
